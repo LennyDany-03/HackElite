@@ -3,6 +3,7 @@ import { ShootingStars } from "@/components/ui/shooting-stars"
 import { StarsBackground } from "@/components/ui/stars-background"
 import { Button } from "@/components/ui/button"
 import { LayoutTextFlip } from "@/components/ui/layout-text-flip"
+import Link from "next/link"
 
 export default function HomePage() {
   return (
@@ -29,9 +30,9 @@ export default function HomePage() {
           </p>
 
           <div className="flex items-center justify-center gap-4 pt-2">
-            <Button size="lg" className="text-base md:text-lg px-8">
-              Get started
-            </Button>
+            <Link href="/userinfo" passHref>
+              <Button size="lg">Get Started</Button>
+            </Link>
           </div>
         </section>
       </main>
