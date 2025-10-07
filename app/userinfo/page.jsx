@@ -7,15 +7,29 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { MultiStepLoader } from "@/components/ui/multi-step-loader"
 
 export default function UserInfoPage() {
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  const loadingStates = [
+    { text: "Securing your data with client-side encryption" },
+    { text: "Preparing your private session" },
+    { text: "Configuring federated learning pipeline" },
+    { text: "Generating personalized options" },
+    { text: "Finalizing — redirecting to experiences" },
+  ]
+
   function onSubmit(e) {
     e.preventDefault()
+    setLoading(true)
   }
 
   return (
     <div className="relative isolate min-h-dvh bg-background overflow-hidden">
-      {/* Background layers - match Home theme */}
       <StarsBackground className="pointer-events-none z-0" />
       <ShootingStars
         className="pointer-events-none z-0"
@@ -23,7 +37,14 @@ export default function UserInfoPage() {
         trailColor={"var(--ring)"}
       />
 
-      <main className="relative z-10 flex min-h-dvh items-center justify-center px-6 py-16">
+      <MultiStepLoader
+        loading={loading}
+        loadingStates={loadingStates}
+        duration={900} // per-step duration
+        onComplete={() => router.push("/recommendation")}
+      />
+
+      <main className="relative z-10 flex min-h-dvh items-center justify-center px-6 py-16" aria-busy={loading}>
         <section className="w-full max-w-4xl">
           <Card className="backdrop-blur supports-[backdrop-filter]:bg-background/70 border-border shadow-md">
             <CardHeader className="space-y-2">
@@ -119,8 +140,8 @@ export default function UserInfoPage() {
               </CardContent>
 
               <CardFooter className="justify-end">
-                <Button type="submit" size="lg" className="w-full md:w-auto px-10 h-12 text-base">
-                  Submit
+                <Button type="submit" size="lg" className="w-full md:w-auto px-10 h-12 text-base" disabled={loading}>
+                  {loading ? "Submitting..." : "Submit"}
                 </Button>
               </CardFooter>
             </form>
