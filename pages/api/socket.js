@@ -1,11 +1,14 @@
+// pages/api/socket.js
+import { Server as SocketIOServer } from "socket.io";
+
 export const config = {
   api: { bodyParser: false },
 };
 
 export default function handler(req, res) {
+  // Reuse existing server.io instance if already created
   if (!res.socket.server.io) {
-    const { Server } = require("socket.io");
-    const io = new Server(res.socket.server, {
+    const io = new SocketIOServer(res.socket.server, {
       path: "/api/socket",
       addTrailingSlash: false,
       cors: { origin: "*" },
@@ -36,5 +39,6 @@ export default function handler(req, res) {
       });
     });
   }
-  res.end();
+
+  res.status(200).end();
 }
