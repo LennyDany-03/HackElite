@@ -1,0 +1,133 @@
+"use client";
+
+// Simple crypto helpers using TweetNaCl for public-key encryption (X25519 + XSalsa20-Poly1305)
+// npm install tweetnacl
+import nacl from "tweetnacl";
+
+// Base64 utilities for Uint8Array <-> string
+export function u8ToBase64(u8: Uint8Array): string {
+  if (typeof window === "undefined") return Buffer.from(u8).toString("base64");
+  let binary = "";
+  const len = u8.byteLength;
+  for (let i = 0; i < len; i++) binary += String.fromCharCode(u8[i]);
+  return btoa(binary);
+}
+
+export function base64ToU8(b64: string): Uint8Array {
+  if (typeof window === "undefined") return new Uint8Array(Buffer.from(b64, "base64"));
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export type IdentityKeys = {
+  publicKey: string; // base64
+  secretKey: string; // base64 (store client-side only!)
+};
+
+const LOCAL_KEY_STORAGE = "e2ee_identity_keys_v1";
+
+export function getOrCreateIdentityKeys(): IdentityKeys {
+  if (typeof window === "undefined") throw new Error("getOrCreateIdentityKeys must run client-side");
+  const existing = window.localStorage.getItem(LOCAL_KEY_STORAGE);
+  if (existing) return JSON.parse(existing) as IdentityKeys;
+
+  const kp = nacl.box.keyPair();
+  const keys: IdentityKeys = {
+    publicKey: u8ToBase64(kp.publicKey),
+    secretKey: u8ToBase64(kp.secretKey),
+  };
+  window.localStorage.setItem(LOCAL_KEY_STORAGE, JSON.stringify(keys));
+  return keys;
+}
+
+export function getIdentityKeys(): IdentityKeys | null {
+  if (typeof window === "undefined") return null;
+  const existing = window.localStorage.getItem(LOCAL_KEY_STORAGE);
+  return existing ? (JSON.parse(existing) as IdentityKeys) : null;
+}
+
+export function clearIdentityKeys() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(LOCAL_KEY_STORAGE);
+}
+
+export type CipherPayload = {
+  ciphertextB64: string;
+  nonceB64: string;
+};
+
+export function encryptForRecipient(message: string, recipientPublicB64: string, senderSecretB64: string): CipherPayload {
+  const nonce = nacl.randomBytes(nacl.box.nonceLength);
+  const cipher = nacl.box(
+    new TextEncoder().encode(message),
+    nonce,
+    base64ToU8(recipientPublicB64),
+    base64ToU8(senderSecretB64)
+  );
+  return { ciphertextB64: u8ToBase64(cipher), nonceB64: u8ToBase64(nonce) };
+}
+
+export function decryptFromSender(ciphertextB64: string, nonceB64: string, senderPublicB64: string, mySecretB64: string): string | null {
+  const plain = nacl.box.open(
+    base64ToU8(ciphertextB64),
+    base64ToU8(nonceB64),
+    base64ToU8(senderPublicB64),
+    base64ToU8(mySecretB64)
+  );
+  if (!plain) return null;
+  return new TextDecoder().decode(plain);
+}
+
+// Deterministic conversation key for 1:1 chats: sha256 of sorted user ids
+export async function conversationKeyFor(userIdA: string, userIdB: string): Promise<string> {
+  const [a, b] = [userIdA, userIdB].sort();
+  const data = new TextEncoder().encode(`${a}:${b}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(digest);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// ---------------- File encryption (AES-GCM) ----------------
+// We encrypt file bytes with AES-GCM using a random 256-bit key and 96-bit IV, then
+// we encrypt that symmetric key to both recipient and sender using NaCl box.
+
+async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+export function randomBytes(len: number): Uint8Array {
+  const u = new Uint8Array(len);
+  crypto.getRandomValues(u);
+  return u;
+}
+
+export async function aesGcmEncrypt(plain: ArrayBuffer, keyRaw: Uint8Array, iv?: Uint8Array): Promise<{ cipher: ArrayBuffer; iv: Uint8Array }>{
+  const key = await importAesKey(keyRaw);
+  const ivUse = iv || randomBytes(12);
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv: ivUse }, key, plain);
+  return { cipher, iv: ivUse };
+}
+
+export async function aesGcmDecrypt(cipher: ArrayBuffer, keyRaw: Uint8Array, iv: Uint8Array): Promise<ArrayBuffer> {
+  const key = await importAesKey(keyRaw);
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);
+}
+
+export async function encryptFileForUpload(file: File): Promise<{ cipherBlob: Blob; ivB64: string; keyB64: string }>{
+  const bytes = await file.arrayBuffer();
+  const keyRaw = randomBytes(32); // 256-bit key
+  const { cipher, iv } = await aesGcmEncrypt(bytes, keyRaw);
+  const cipherBlob = new Blob([new Uint8Array(cipher)], { type: "application/octet-stream" });
+  return { cipherBlob, ivB64: u8ToBase64(iv), keyB64: u8ToBase64(keyRaw) };
+}
+
+export async function decryptFileFromBytes(cipherBytes: ArrayBuffer, ivB64: string, keyB64: string, mimeType: string): Promise<Blob> {
+  const plain = await aesGcmDecrypt(cipherBytes, base64ToU8(keyB64), base64ToU8(ivB64));
+  return new Blob([new Uint8Array(plain)], { type: mimeType || "application/octet-stream" });
+}
+
