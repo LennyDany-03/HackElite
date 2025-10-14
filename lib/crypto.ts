@@ -97,7 +97,9 @@ export async function conversationKeyFor(userIdA: string, userIdB: string): Prom
 // we encrypt that symmetric key to both recipient and sender using NaCl box.
 
 async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  // Ensure we pass an ArrayBuffer (not ArrayBufferLike) slice matching the view
+  const rawBuf = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer;
+  return crypto.subtle.importKey("raw", rawBuf, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 export function randomBytes(len: number): Uint8Array {
@@ -109,13 +111,16 @@ export function randomBytes(len: number): Uint8Array {
 export async function aesGcmEncrypt(plain: ArrayBuffer, keyRaw: Uint8Array, iv?: Uint8Array): Promise<{ cipher: ArrayBuffer; iv: Uint8Array }>{
   const key = await importAesKey(keyRaw);
   const ivUse = iv || randomBytes(12);
-  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv: ivUse }, key, plain);
+  // Web Crypto typings expect BufferSource; provide a precise ArrayBuffer slice
+  const ivBuf = ivUse.buffer.slice(ivUse.byteOffset, ivUse.byteOffset + ivUse.byteLength) as ArrayBuffer;
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv: ivBuf }, key, plain);
   return { cipher, iv: ivUse };
 }
 
 export async function aesGcmDecrypt(cipher: ArrayBuffer, keyRaw: Uint8Array, iv: Uint8Array): Promise<ArrayBuffer> {
   const key = await importAesKey(keyRaw);
-  return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);
+  const ivBuf = iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer;
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv: ivBuf }, key, cipher);
 }
 
 export async function encryptFileForUpload(file: File): Promise<{ cipherBlob: Blob; ivB64: string; keyB64: string }>{
@@ -130,4 +135,3 @@ export async function decryptFileFromBytes(cipherBytes: ArrayBuffer, ivB64: stri
   const plain = await aesGcmDecrypt(cipherBytes, base64ToU8(keyB64), base64ToU8(ivB64));
   return new Blob([new Uint8Array(plain)], { type: mimeType || "application/octet-stream" });
 }
-
