@@ -23,6 +23,8 @@ export default function ChatPage() {
   const [recipientUsername, setRecipientUsername] = useState("");
   const [recipientProfile, setRecipientProfile] = useState(null);
   const [convKey, setConvKey] = useState(null);
+  // Keep latest conversation key in a ref so socket reconnect handlers always see it
+  const convKeyRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -73,11 +75,14 @@ export default function ChatPage() {
       socketRef.current = s;
 
       s.on("connect", () => {
-        // Join current room if already selected
-        if (convKey) s.emit("join", convKey);
+        // Always (re)join the latest active room on connect
+        const k = convKeyRef.current;
+        if (k) s.emit("join", k);
       });
 
       s.on("message:new", async (row) => {
+        // Ignore messages for other conversations (in case we're joined to multiple rooms)
+        if (row.conversation_key && convKeyRef.current && row.conversation_key !== convKeyRef.current) return;
         setMessages((prev) => {
           if (prev.some((m) => m.id === row.id)) return prev; // dedupe
           return [...prev, decorate(row, u.id, ik)];
@@ -90,6 +95,7 @@ export default function ChatPage() {
       });
 
       s.on("file:new", async (row) => {
+        if (row.conversation_key && convKeyRef.current && row.conversation_key !== convKeyRef.current) return;
         setMessages((prev) => {
           if (prev.some((m) => m.id === row.id)) return prev;
           return [...prev, decorateFile(row, u.id, ik)];
@@ -107,6 +113,16 @@ export default function ChatPage() {
       }
     };
   }, [router]);
+
+  // Keep convKeyRef in sync with state
+  useEffect(() => {
+    convKeyRef.current = convKey;
+    // If socket is connected and we have a key, (re)join the room
+    const s = socketRef.current;
+    if (s && s.connected && convKey) {
+      s.emit("join", convKey);
+    }
+  }, [convKey]);
 
   function decorate(row, myId, ik) {
     return {
