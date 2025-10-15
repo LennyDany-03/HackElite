@@ -22,6 +22,8 @@ export default function ChatPage() {
   const [profile, setProfile] = useState(null)
   const [keys, setKeys] = useState(null)
 
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   const [recipientUsername, setRecipientUsername] = useState("")
   const [recipientProfile, setRecipientProfile] = useState(null)
   const [convKey, setConvKey] = useState(null)
@@ -362,43 +364,70 @@ export default function ChatPage() {
       <ShootingStars className="absolute inset-0 z-0" />
 
       <div className="relative z-10 min-h-screen w-full flex">
-        <aside className="w-80 backdrop-blur-xl bg-white/5 border-r border-white/10 flex flex-col">
+        {sidebarOpen && (
+          <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
+        )}
+
+        <aside
+          className={`
+          fixed md:relative inset-y-0 left-0 z-30
+          w-80 md:w-80 lg:w-96
+          backdrop-blur-xl bg-white/5 border-r border-white/10 
+          flex flex-col
+          transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+        >
           {/* Sidebar Header */}
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-white">Messages</h1>
-              <button
-                onClick={signOut}
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-all duration-200 border border-white/10"
-              >
-                Sign out
-              </button>
+          <div className="p-4 md:p-6 border-b border-white/10">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h1 className="text-xl md:text-2xl font-bold text-white">Messages</h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={signOut}
+                  className="px-2 md:px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm transition-all duration-200 border border-white/10"
+                >
+                  Sign out
+                </button>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="md:hidden w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {profile && (
               <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
                 <div className="text-xs text-gray-400 mb-1">Logged in as</div>
-                <div className="text-sm font-medium text-white">{profile.username}</div>
+                <div className="text-sm font-medium text-white truncate">{profile.username}</div>
               </div>
             )}
 
             {/* New Chat Input */}
             <div className="flex items-center gap-2">
               <input
-                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
+                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                 placeholder="Start new chat..."
                 value={recipientUsername}
                 onChange={(e) => setRecipientUsername(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && recipientUsername.trim()) {
                     loadChat()
+                    setSidebarOpen(false) // Close sidebar on mobile after starting chat
                   }
                 }}
               />
               <button
-                onClick={loadChat}
+                onClick={() => {
+                  loadChat()
+                  setSidebarOpen(false) // Close sidebar on mobile after starting chat
+                }}
                 disabled={!recipientUsername || loadingChat}
-                className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all"
+                className="px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all"
               >
                 {loadingChat ? "..." : "Go"}
               </button>
@@ -406,7 +435,7 @@ export default function ChatPage() {
           </div>
 
           {/* Contacts List */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-3 md:p-4">
             <div className="text-xs uppercase text-gray-400 mb-3 px-2">Recent Chats</div>
             {contactsLoading && <div className="text-sm text-gray-400 px-2">Loading contacts...</div>}
             {!contactsLoading && contacts.length === 0 && (
@@ -446,15 +475,16 @@ export default function ChatPage() {
                           (a, b) => new Date(a.created_at) - new Date(b.created_at),
                         )
                         setMessages(merged)
+                        setSidebarOpen(false) // Close sidebar on mobile after selecting contact
                       }}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                      className={`w-full text-left px-3 md:px-4 py-2.5 md:py-3 rounded-lg transition-all duration-200 ${
                         active
                           ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
                           : "hover:bg-white/5 border border-transparent"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm md:text-base">
                           {c.username.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -475,47 +505,65 @@ export default function ChatPage() {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col w-full md:w-auto">
           {recipientProfile && convKey ? (
             <>
               {/* Chat Header */}
-              <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 px-8 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-lg">
+              <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 px-4 md:px-8 py-3 md:py-4">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <button
+                    onClick={() => setSidebarOpen(true)}
+                    className="md:hidden w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                  >
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-base md:text-lg">
                     {recipientProfile.username.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">{recipientProfile.username}</h2>
-                    <p className="text-xs text-gray-400">End-to-end encrypted</p>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-base md:text-lg font-semibold text-white truncate">
+                      {recipientProfile.username}
+                    </h2>
+                    <p className="text-[10px] md:text-xs text-gray-400">End-to-end encrypted</p>
                   </div>
                 </div>
               </header>
 
               {/* Error Display */}
               {error && (
-                <div className="mx-8 mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                <div className="mx-4 md:mx-8 mt-3 md:mt-4 p-3 md:p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs md:text-sm">
                   {error}
                 </div>
               )}
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto px-8 py-6">
-                <div className="flex flex-col gap-4 max-w-4xl mx-auto">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6">
+                <div className="flex flex-col gap-3 md:gap-4 max-w-4xl mx-auto">
                   {messages.map((m) => {
                     const mine = m.sender_id === (user && user.id)
                     if (m.type === "file") {
                       return (
                         <div key={`f_${m.id}`} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[70%] ${mine ? "items-end" : "items-start"} flex flex-col gap-1`}>
+                          <div
+                            className={`max-w-[85%] md:max-w-[70%] ${mine ? "items-end" : "items-start"} flex flex-col gap-1`}
+                          >
                             <div
-                              className={`px-4 py-3 rounded-2xl backdrop-blur-xl ${
+                              className={`px-3 md:px-4 py-2.5 md:py-3 rounded-2xl backdrop-blur-xl ${
                                 mine
                                   ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-sm"
                                   : "bg-white/10 border border-white/20 text-white rounded-bl-sm"
                               }`}
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg
+                                  className="w-4 h-4 md:w-5 md:h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
                                   <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
@@ -523,14 +571,14 @@ export default function ChatPage() {
                                     d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                                   />
                                 </svg>
-                                <div className="text-sm font-medium">{m.file_name}</div>
+                                <div className="text-xs md:text-sm font-medium truncate">{m.file_name}</div>
                               </div>
-                              <div className="text-xs opacity-80 mb-3">
+                              <div className="text-[10px] md:text-xs opacity-80 mb-2 md:mb-3">
                                 Encrypted • {(m.size_bytes / 1024).toFixed(1)} KB
                               </div>
                               <button
                                 onClick={() => downloadFile(m)}
-                                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                className={`w-full px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
                                   mine
                                     ? "bg-white/20 hover:bg-white/30 text-white"
                                     : "bg-purple-500 hover:bg-purple-600 text-white"
@@ -551,15 +599,17 @@ export default function ChatPage() {
                     }
                     return (
                       <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[70%] ${mine ? "items-end" : "items-start"} flex flex-col gap-1`}>
+                        <div
+                          className={`max-w-[85%] md:max-w-[70%] ${mine ? "items-end" : "items-start"} flex flex-col gap-1`}
+                        >
                           <div
-                            className={`px-4 py-3 rounded-2xl backdrop-blur-xl ${
+                            className={`px-3 md:px-4 py-2.5 md:py-3 rounded-2xl backdrop-blur-xl ${
                               mine
                                 ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-sm"
                                 : "bg-white/10 border border-white/20 text-white rounded-bl-sm"
                             }`}
                           >
-                            <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                            <div className="whitespace-pre-wrap break-words text-xs md:text-sm leading-relaxed">
                               {m.plaintext ?? "[unable to decrypt]"}
                             </div>
                           </div>
@@ -578,9 +628,9 @@ export default function ChatPage() {
               </div>
 
               {/* Input Area */}
-              <div className="backdrop-blur-xl bg-white/5 border-t border-white/10 px-8 py-4">
+              <div className="backdrop-blur-xl bg-white/5 border-t border-white/10 px-4 md:px-8 py-3 md:py-4">
                 <div className="max-w-4xl mx-auto">
-                  <div className="flex items-end gap-3">
+                  <div className="flex items-end gap-2 md:gap-3">
                     {/* File Upload */}
                     <label className="cursor-pointer">
                       <input
@@ -588,8 +638,13 @@ export default function ChatPage() {
                         onChange={(e) => setFileToSend(e.target.files?.[0] || null)}
                         className="hidden"
                       />
-                      <div className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all">
-                        <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all">
+                        <svg
+                          className="w-4 h-4 md:w-5 md:h-5 text-gray-300"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -603,7 +658,7 @@ export default function ChatPage() {
                     {/* Message Input */}
                     <div className="flex-1 relative">
                       <textarea
-                        className="w-full bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all resize-none"
+                        className="w-full bg-white/10 border border-white/20 rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all resize-none"
                         placeholder="Type a message..."
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -615,14 +670,19 @@ export default function ChatPage() {
                         }}
                         rows={1}
                         style={{
-                          minHeight: "44px",
+                          minHeight: "40px",
                           maxHeight: "120px",
                         }}
                       />
                       {fileToSend && (
-                        <div className="absolute -top-12 left-0 right-0 bg-white/10 backdrop-blur-xl border border-white/20 rounded-lg px-3 py-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm text-white">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute -top-12 md:-top-14 left-0 right-0 bg-white/10 backdrop-blur-xl border border-white/20 rounded-lg px-2 md:px-3 py-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs md:text-sm text-white min-w-0">
+                            <svg
+                              className="w-4 h-4 flex-shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -632,7 +692,10 @@ export default function ChatPage() {
                             </svg>
                             <span className="truncate">{fileToSend.name}</span>
                           </div>
-                          <button onClick={() => setFileToSend(null)} className="text-gray-400 hover:text-white">
+                          <button
+                            onClick={() => setFileToSend(null)}
+                            className="text-gray-400 hover:text-white flex-shrink-0 ml-2"
+                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path
                                 strokeLinecap="round"
@@ -651,17 +714,17 @@ export default function ChatPage() {
                       <button
                         onClick={sendFile}
                         disabled={sending}
-                        className="px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all"
+                        className="px-4 md:px-6 py-2.5 md:py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all whitespace-nowrap"
                       >
-                        {sending ? "Sending..." : "Send File"}
+                        {sending ? "Sending..." : "Send"}
                       </button>
                     ) : (
                       <button
                         onClick={sendMessage}
                         disabled={!input.trim() || sending}
-                        className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center justify-center"
+                        className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center justify-center flex-shrink-0"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -676,10 +739,24 @@ export default function ChatPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center p-6">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden fixed top-4 left-4 w-12 h-12 rounded-lg bg-white/10 backdrop-blur-xl hover:bg-white/20 flex items-center justify-center transition-all border border-white/10 z-10"
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
               <div className="text-center max-w-md px-6">
-                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center">
-                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 md:mb-6 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center">
+                  <svg
+                    className="w-10 h-10 md:w-12 md:h-12 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -688,8 +765,8 @@ export default function ChatPage() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">No conversation selected</h3>
-                <p className="text-gray-400 text-sm">
+                <h3 className="text-lg md:text-xl font-semibold text-white mb-2">No conversation selected</h3>
+                <p className="text-gray-400 text-xs md:text-sm">
                   Choose a chat from the sidebar or start a new conversation to begin messaging
                 </p>
               </div>
